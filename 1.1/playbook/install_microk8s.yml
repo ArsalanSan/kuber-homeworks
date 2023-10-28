@@ -50,6 +50,14 @@
         groups: microk8s
         append: true
 
+    - name: Setting external connection
+      ansible.builtin.lineinfile:
+        path: /var/snap/microk8s/current/certs/csr.conf.template
+      #  mode: '0644'
+        regexp: '^IP.3'
+        insertafter: '#MOREIPS'
+        line: 'IP.3 = 0.0.0.0'
+
   #  - name: Service status snapd.socket
   #    ansible.builtin.systemd:
   #      name: snapd.socket
