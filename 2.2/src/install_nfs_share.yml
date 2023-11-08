@@ -1,0 +1,48 @@
+---
+
+- name: Install NFS Server on Almalinux 9
+  hosts: all
+#  gather_facts: false
+  become: true
+  handlers:
+    - name: Start nfs service
+      ansible.builtin.systemd:
+        name: nfs-server.service
+        state: restarted
+        enabled: true
+  tasks:
+    - name: Disable selinux
+      ansible.posix.selinux:
+        state: disabled
+
+    - name: Install nfs-utils
+      ansible.builtin.dnf:
+        name:
+         - nfs-utils
+        state: present
+
+    # - name: Start and enable nfs service
+    #   ansible.builtin.systemd:
+    #     name: nfs-server.service
+    #     state: started
+    #     enabled: true
+
+    - name: Create directory
+      ansible.builtin.file:
+        path: /opt/nfs
+        state: directory
+        #recurse: yes
+        owner: nobody
+        group: nobody
+        mode: "0777"
+
+    - name: Setting exports
+      ansible.builtin.lineinfile:
+        path: /etc/exports
+      #  mode: '0644'
+        line: '/opt/nfs 10.0.0.0/8(rw,sync,no_subtree_check)'
+        create: true
+      notify: Start nfs service
+    
+    # - name: Flush handlers
+    #   ansible.builtin.meta: flush_handlers
