@@ -1,0 +1,117 @@
+- name: Test
+  gather_facts: true
+  hosts: all
+  become: true
+  vars:
+    virtual_ipaddress: 10.0.1.100
+  tasks:
+    - name: Configuration all nodes | Set hostname
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Configuration all nodes | install haproxy and keepalived
+      ansible.builtin.dnf:
+        name:
+          - haproxy
+          - keepalived
+        state: present
+      when: inventory_hostname in groups['vip']
+
+    - name: Configuration all nodes | Copy configuration files from template for haproxy
+      ansible.builtin.template:
+        src: haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        # mode: '0600'
+      when: inventory_hostname in groups['vip']
+
+    - name: Configuration all nodes | Copy configuration files from template for keepalived
+      ansible.builtin.template:
+        src: keepalived.conf.j2
+        dest: /etc/keepalived/keepalived.conf
+        owner: root
+        group: root
+        # mode: '0600'
+      when: inventory_hostname in groups['vip']
+
+    # - name: set hostname
+    #   ansible.builtin.hostname:
+    #     name: "{{ inventory_hostname }}"ca
+    #     use: systemd
+
+  # - name: Print all available factscx
+  #   ansible.builtin.debug:
+  #     var: ansible_default_ipv4.address
+
+  # - name: Configure hosts file
+  #   ansible.builtin.lineinfile:
+  #     dest: /etc/hosts
+  #     regexp: '.*{{ item }}$'
+  #     line: '{{ hostvars[item].ansible_default_ipv4.address }} {{item}}'
+  #     state: present
+  #   with_items: '{{ groups["all"] }}'
+
+    # - name: Initializing Kubernetes cluster
+      # ansible.builtin.command: |
+        # kubeadm init
+        # --apiserver-advertise-address=192.168.56.11
+        # --control-plane-endpoint=proxy-master
+        # --apiserver-cert-extra-sans=haproxy
+        # --pod-network-cidr=10.244.0.0/16
+        # --upload-certs
+      # when: inventory_hostname in groups['master']
+  # 
+    # - name: Set up Kubernetes for not root user
+      # become: false
+      # ansible.builtin.shell: |
+        # mkdir -p $HOME/.kube
+        # sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        # sudo chown $(id -u):$(id -g) $HOME/.kube/config
+      # when: inventory_hostname in groups['master']
+  # 
+    # - name: Install Calico Add-on
+      # become: false
+      # ansible.builtin.command: >
+        # kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
+      # when: inventory_hostname in groups['master']
+  # 
+    # - name: Retrieve Kubernetes join command that is used to join worker node(s)
+      # become: false
+      # ansible.builtin.command: kubeadm token create --print-join-command
+      # register: join_command_raw
+      # when: inventory_hostname in groups['master']
+  # 
+
+# 
+    # - name: Set join command
+      # ansible.builtin.set_fact:
+        # join_command: "{{ join_command_raw.stdout_lines[0] }}"
+      # when: inventory_hostname in groups['master']
+  # 
+    # - name: Print the join_command
+      # debug:
+        # msg: "{{ join_command }}"
+      # when: inventory_hostname in groups['master']
+  # 
+    # - name: Join node to the cluster
+      # ansible.builtin.command: "{{ hostvars['master-node'].join_command }}"
+      # when: inventory_hostname in groups['workers']
+  # 
+    # - name: Add k alias on Master Node
+      # become: false
+      # ansible.builtin.lineinfile:
+        # path: ~/.bashrc
+        # line: alias k=kubectl
+        # regexp: '^alias k=kubectl&'
+        # state: present
+        # insertafter: EOF
+        # create: true
+        # mode: '0644'
+      # when: inventory_hostname in groups['master']
+  # 
+    # - name: Install helm
+      # ansible.builtin.shell: |
+        # set -o pipefail
+        # curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      # when: inventory_hostname in groups['master']

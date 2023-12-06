@@ -1,0 +1,143 @@
+---
+- name: Install Cluster K8s on Almalinux 9 | Configuration all nodes
+  gather_facts: true
+  hosts: all
+  become: true
+  vars:
+    sysctl_param:
+      - net.bridge.bridge-nf-call-iptables
+      - net.ipv4.ip_forward
+      - net.bridge.bridge-nf-call-ip6tables
+  tasks:
+    - name: Configuration all nodes | Set hostname
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+#        use: systemd
+
+    - name: Configuration all nodes | Disable selinux
+      ansible.posix.selinux:
+        state: disabled
+
+    - name: Configuration all nodes | Turn off swap
+      ansible.builtin.command: swapoff -a
+
+    - name: Configuration all nodes | Configure hosts file
+      ansible.builtin.lineinfile:
+        dest: /etc/hosts
+        regexp: '.*{{ item }}$'
+        line: '{{ hostvars[item].ansible_default_ipv4.address }} {{ item }}'
+        state: present
+      with_items: '{{ groups["all"] }}'
+
+    - name: Configuration all nodes | Load modules
+      ansible.builtin.shell: |
+        modprobe overlay
+        modprobe br_netfilter
+
+    - name: Configuration all nodes | Add configuration for automatically modules loaded
+      ansible.builtin.blockinfile:
+        path: /etc/modules-load.d/containerd.conf
+        create: true
+        block: |
+          overlay
+          br_netfilter
+
+    - name: Configuration all nodes | Setup sysctl params
+      ansible.posix.sysctl:
+        name: "{{ item }}"
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes
+        sysctl_file: /etc/sysctl.d/k8s.conf
+      loop:
+        "{{ sysctl_param }}"
+
+- name: Install Cluster K8s on Almalinux 9  | Install and configuration HA nodes
+  gather_facts: true
+  hosts: vip
+  become: true
+  tasks:
+    - name: Install and configuration HA nodes | Install haproxy and keepalived
+      ansible.builtin.dnf:
+        name: 
+          - haproxy
+          # - keepalived
+        state: present
+    
+    - name: Install and configuration HA nodes | Copy configuration files from template for haproxy
+      ansible.builtin.template:
+        src: haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        # mode: '0600'
+    
+    - name: Install and configuration HA nodes | Enable and started service haproxy
+      ansible.builtin.systemd:
+        name: haproxy
+        state: started
+        enabled: true
+
+- name: Install Cluster K8s on Almalinux 9 | Configuration Master and Worker K8s nodes  
+  gather_facts: true
+  hosts: cluster
+  become: true
+  vars:
+    packages:
+      - kubelet
+      - kubeadm
+      - kubectl
+  tasks:
+    - name: Configuration Master and Worker K8s nodes | Add official Docker Repository
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docker-ce.repo
+        mode: 0644
+  
+    - name: Configuration Master and Worker K8s nodes | Install the containerd package
+      ansible.builtin.dnf:
+        name: containerd
+        state: present
+  
+    - name: Configuration Master and Worker K8s nodes | Create a configuration file for containerd and set it to default
+      ansible.builtin.shell: |
+        mkdir -p /etc/containerd
+        containerd config default | sudo tee /etc/containerd/config.toml
+  
+    - name: Configuration Master and Worker K8s nodes | Set cgroupdriver to systemd
+      ansible.builtin.lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup = false'
+        line: SystemdCgroup = true
+  
+    - name: Configuration Master and Worker K8s nodes | Restart containerd package
+      ansible.builtin.systemd:
+        name: containerd
+        state: restarted
+        enabled: true
+  
+    - name: Configuration Master and Worker K8s nodes | Add the Kubernetes repository
+      ansible.builtin.blockinfile:
+        path: /etc/yum.repos.d/kubernetes.repo
+        create: true
+        block: |
+          [kubernetes]
+          name=Kubernetes
+          baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+          enabled=1
+          gpgcheck=1
+          repo_gpgcheck=1
+          gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg          
+  
+    - name: Configuration Master and Worker K8s nodes | Install all Kubernetes modules (kubelet, kubeadm, kubectl)
+      ansible.builtin.dnf:
+        name: "{{ packages }}"
+        state: present
+  
+    - name: Configuration Master and Worker K8s nodes | Enable kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        state: started
+        enabled: true
+  

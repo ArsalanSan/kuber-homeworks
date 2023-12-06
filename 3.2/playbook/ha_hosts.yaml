@@ -1,0 +1,41 @@
+---
+master:
+  hosts:
+    master-node-1:
+      ansible_host: 158.160.121.103
+      ansible_user: cloud-user
+    master-node-2:
+      ansible_host: 158.160.110.64
+      ansible_user: cloud-user
+    master-node-3:
+      ansible_host: 158.160.100.59
+      ansible_user: cloud-user
+
+workers:
+  hosts:
+    worker-node-1:
+      ansible_host: 158.160.113.217
+      ansible_user: cloud-user
+    worker-node-2:
+      ansible_host: 158.160.106.209
+      ansible_user: cloud-user
+      
+vip:
+  hosts:
+    proxy-master:
+      ansible_host: 158.160.99.49
+      ansible_user: cloud-user
+    # proxy-slave:
+      # ansible_host: 158.160.114.137
+      # ansible_user: cloud-user
+
+cluster:
+  children:
+    master:
+    workers:
+
+all:
+  children:
+    master:
+    workers:
+    vip:

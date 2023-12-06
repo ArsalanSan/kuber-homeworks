@@ -1,0 +1,24 @@
+---
+master:
+  hosts:
+    master-node:
+      ansible_host: 158.160.123.56
+      ansible_user: cloud-user
+workers:
+  hosts:
+    worker-node-1:
+      ansible_host: 158.160.104.131
+      ansible_user: cloud-user
+    worker-node-2:
+      ansible_host: 158.160.63.70
+      ansible_user: cloud-user
+    worker-node-3:
+      ansible_host: 84.252.131.2
+      ansible_user: cloud-user
+    worker-node-4:
+      ansible_host: 51.250.13.205
+      ansible_user: cloud-user
+all:
+  children:
+    master:
+    workers:
