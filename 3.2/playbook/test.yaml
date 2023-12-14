@@ -2,38 +2,50 @@
   gather_facts: true
   hosts: all
   become: true
-  vars:
-    virtual_ipaddress: 10.0.1.100
   tasks:
-    - name: Configuration all nodes | Set hostname
-      ansible.builtin.hostname:
-        name: "{{ inventory_hostname }}"
+    # - name: Join Master and Worker nodes | Command generate token join
+    #   ansible.builtin.command: kubeadm token create --print-join-command
+    #   register: join_command
+    #   when: inventory_hostname == 'master-node-1'
 
-    - name: Configuration all nodes | install haproxy and keepalived
-      ansible.builtin.dnf:
-        name:
-          - haproxy
-          - keepalived
-        state: present
-      when: inventory_hostname in groups['vip']
+    # - name: Join Master and Worker nodes | Set join command for Worker
+    #   ansible.builtin.set_fact:
+    #     join_worker: "{{ join_command.stdout_lines[0] }}"
+    #   when: inventory_hostname == 'master-node-1'
 
-    - name: Configuration all nodes | Copy configuration files from template for haproxy
-      ansible.builtin.template:
-        src: haproxy.cfg.j2
-        dest: /etc/haproxy/haproxy.cfg
-        owner: root
-        group: root
-        # mode: '0600'
-      when: inventory_hostname in groups['vip']
+    # - name: Join Master and Worker nodes | Join Worker nodes
+    #   ansible.builtin.command: "{{ hostvars['master-node-1'].join_worker }}"
+    #   when:  inventory_hostname in groups['workers']
 
-    - name: Configuration all nodes | Copy configuration files from template for keepalived
-      ansible.builtin.template:
-        src: keepalived.conf.j2
-        dest: /etc/keepalived/keepalived.conf
-        owner: root
-        group: root
-        # mode: '0600'
-      when: inventory_hostname in groups['vip']
+    # - name: Configuration all nodes | Set hostname
+    #   ansible.builtin.hostname:
+    #     name: "{{ inventory_hostname }}"
+
+    # - name: Configuration all nodes | install haproxy and keepalived
+    #   ansible.builtin.dnf:
+    #     name:
+    #       - haproxy
+    #       - keepalived
+    #     state: present
+    #   when: inventory_hostname in groups['vip']
+
+    # - name: Configuration all nodes | Copy configuration files from template for haproxy
+    #   ansible.builtin.template:
+    #     src: haproxy.cfg.j2
+    #     dest: /etc/haproxy/haproxy.cfg
+    #     owner: root
+    #     group: root
+    #     # mode: '0600'
+    #   when: inventory_hostname in groups['vip']
+
+    # - name: Configuration all nodes | Copy configuration files from template for keepalived
+    #   ansible.builtin.template:
+    #     src: keepalived.conf.j2
+    #     dest: /etc/keepalived/keepalived.conf
+    #     owner: root
+    #     group: root
+    #     # mode: '0600'
+    #   when: inventory_hostname in groups['vip']
 
     # - name: set hostname
     #   ansible.builtin.hostname:
@@ -57,9 +69,10 @@
         # kubeadm init
         # --apiserver-advertise-address=192.168.56.11
         # --control-plane-endpoint=proxy-master
-        # --apiserver-cert-extra-sans=haproxy
+        # --apiserver-cert-extra-sans=haproxy-master
         # --pod-network-cidr=10.244.0.0/16
         # --upload-certs
+        # sudo kubeadm init --control-plane-endpoint=proxy-master --apiserver-cert-extra-sans=haproxy-master --upload-certs
       # when: inventory_hostname in groups['master']
   # 
     # - name: Set up Kubernetes for not root user
@@ -76,28 +89,35 @@
         # kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
       # when: inventory_hostname in groups['master']
   # 
-    # - name: Retrieve Kubernetes join command that is used to join worker node(s)
-      # become: false
-      # ansible.builtin.command: kubeadm token create --print-join-command
-      # register: join_command_raw
-      # when: inventory_hostname in groups['master']
-  # 
+    # - name: Command generate token join
+    #   ansible.builtin.command: kubeadm token create --print-join-command
+    #   register: join_command_worker
+    #   when: inventory_hostname == 'master-node-1'
 
-# 
-    # - name: Set join command
-      # ansible.builtin.set_fact:
-        # join_command: "{{ join_command_raw.stdout_lines[0] }}"
-      # when: inventory_hostname in groups['master']
-  # 
+    # - name: Command generate certificate key
+    #   ansible.builtin.command: kubeadm init phase upload-certs --upload-certs
+    #   register: cert_key
+    #   when: inventory_hostname == 'master-node-1'
+
+    # - name: Set join command for Masters
+    #   ansible.builtin.set_fact:
+    #     join_command: "{{ join_command_worker.stdout_lines[0] }} --control-plane --certificate-key {{ cert_key.stdout_lines[2] }}"
+    #   when: inventory_hostname == 'master-node-1'
+  
     # - name: Print the join_command
-      # debug:
-        # msg: "{{ join_command }}"
-      # when: inventory_hostname in groups['master']
-  # 
+    #   debug:
+    #     msg: "{{ hostvars['master-node-1'].join_command }}"
+    #   when: inventory_hostname == 'master-node-1'
+
     # - name: Join node to the cluster
-      # ansible.builtin.command: "{{ hostvars['master-node'].join_command }}"
+      # ansible.builtin.command: "{{ hostvars['master-node-1'].join_command }}"
       # when: inventory_hostname in groups['workers']
-  # 
+   
+    # - name: Join master nodes
+    #   ansible.builtin.command: "{{ hostvars['master-node-1'].join_command }}"
+    #   when: inventory_hostname == 'master-node-3'
+    #   # when: inventory_hostname in groups['master'] and inventory_hostname != 'master-node-1'
+
     # - name: Add k alias on Master Node
       # become: false
       # ansible.builtin.lineinfile:
