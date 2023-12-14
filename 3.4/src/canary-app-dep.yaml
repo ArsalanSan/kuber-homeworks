@@ -1,0 +1,28 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  namespace: canary-app
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: app-deployment
+  template:
+    metadata:
+      labels:
+        app: app-deployment
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.20
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: nginx-htm
+            mountPath: /usr/share/nginx/html/
+      volumes:
+      - name: nginx-htm
+        configMap:
+          name: app2-cmap
